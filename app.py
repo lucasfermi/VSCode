@@ -10,7 +10,7 @@ import streamlit as st
 
 from utils.ambiente import instrucoes_instalacao, python_em_uso, verificar_ambiente
 
-VERSAO = "4.1.1"
+VERSAO = "4.2 (em desenvolvimento)"
 BASE = os.path.dirname(os.path.abspath(__file__))
 ICONE = os.path.join(BASE, "assets", "icone.png")
 LOGO = os.path.join(BASE, "assets", "logo_horizontal.png")
@@ -46,8 +46,20 @@ from models.trilha3_bayes import METODOS as METODOS_EB  # noqa: E402
 from utils.constantes import NIVEIS_CONFIANCA_K, ORDEM_TRILHAS, PESOS_UPS_PADRAO, rotulo_trilha  # noqa: E402
 from utils.entrada import COLUNAS_MODELO, ErroEntrada, adaptar_planilha, ler_arquivo  # noqa: E402
 from utils.mapas import mapa_criticos, mapa_kde  # noqa: E402
+from utils.osm import ATRIBUICAO, CLASSES_PRINCIPAIS, CLASSES_URBANAS, ler_vias_osm  # noqa: E402
 from utils.preprocessamento import preparar_dados  # noqa: E402
 from utils.relatorio import gerar_pdf_completo  # noqa: E402
+from utils.segmentacao import (  # noqa: E402
+    COMPRIMENTO_PADRAO,
+    LIMITES_COMPRIMENTO,
+    LONGE_DO_SNV,
+    ler_arquivos_sinistros,
+    ler_snv_enviado,
+    preparar_snv,
+    retangulo,
+    segmentar,
+)
+from utils.trafego import ler_vmd_pnct  # noqa: E402
 
 for _aviso in AVISOS_AMBIENTE:
     st.warning(_aviso)
@@ -66,7 +78,7 @@ st.markdown("""
 
 ESTADO_INICIAL = {"dados": None, "avisos_entrada": [], "erro_entrada": None, "arquivo_id": None, "uploader_key": 0,
                   "resultados": {}, "erros": {}, "avisos": {}, "df_proc": None, "assinatura": None,
-                  "pdf": None, "xlsx": None, "pdf_assinatura": None, "mapas": {}}
+                  "pdf": None, "xlsx": None, "pdf_assinatura": None, "mapas": {}, "msgs_segmentacao": None}
 for chave, valor in ESTADO_INICIAL.items():
     st.session_state.setdefault(chave, valor)
 
@@ -122,6 +134,98 @@ def resultados_planilha(resultados: dict) -> tuple[bytes, str, str]:
 LIMITE_PONTOS_MAPA = 20_000
 
 
+def _chave(arquivos) -> tuple:
+    return tuple((a.name, a.size, getattr(a, "file_id", None)) for a in arquivos)
+
+
+@st.cache_resource(max_entries=2, show_spinner="Lendo o SNV...")
+def snv_preparado(chave, _arquivos):
+    """SNV lido e preparado uma vez por envio (compartilhado entre execuções)."""
+    return preparar_snv(ler_snv_enviado([(a.name, a.getvalue()) for a in _arquivos]))
+
+
+@st.cache_resource(max_entries=2, show_spinner="Lendo os sinistros...")
+def sinistros_lidos(chave, _arquivos):
+    return ler_arquivos_sinistros([(a.name, a.getvalue()) for a in _arquivos])
+
+
+@st.cache_resource(max_entries=2, show_spinner="Lendo as vias do OpenStreetMap...")
+def vias_osm_lidas(chave, bbox, classes, _arquivo):
+    return ler_vias_osm(_arquivo.getvalue(), bbox, list(classes))
+
+
+@st.cache_resource(max_entries=2, show_spinner="Lendo o VMD...")
+def vmd_pnct(chave, _arquivo):
+    return ler_vmd_pnct(_arquivo.getvalue(), nome=_arquivo.name)
+
+
+SEM_EXTENSAO = ("Nenhuma linha tem a extensão do segmento: a planilha parece ter um sinistro por linha. Com ela, "
+                "só a Trilha 2 (KDE) roda. Para as três trilhas, envie-a na Opção 2 (segmentação automática), "
+                "com o SNV.")
+
+
+def avisos_sem_extensao(dados: pd.DataFrame, avisos: list[str]) -> list[str]:
+    """Planilha sem nenhuma extensão (em geral, um sinistro por linha): um aviso que indica a Opção 2."""
+    if dados["extensao_trecho"].isna().all():
+        return [SEM_EXTENSAO] + [a for a in avisos if "sem extensão válida" not in a]
+    return avisos
+
+
+def dica_erro(mensagem: str, dados: pd.DataFrame) -> str:
+    """O que o usuário pode fazer quando uma trilha não roda por falta de extensão ou de VMD."""
+    sem_extensao = "extensao_trecho" not in dados or dados["extensao_trecho"].isna().all()
+    if ("extensão" in mensagem or "VMD" in mensagem) and sem_extensao:
+        return (" A planilha não traz a extensão dos segmentos (parece ter um sinistro por linha): envie-a na "
+                "Opção 2 (segmentação automática), com o SNV.")
+    if "VMD" in mensagem:
+        return " Inclua a coluna volume_trafego na planilha ou, na Opção 2, envie a planilha de VMD do PNCT."
+    return ""
+
+
+def mensagens_segmentacao(resumo: dict) -> list[tuple[str, str]]:
+    """Resumo da segmentação em mensagens (tipo, texto) para a barra lateral."""
+    n, ok = resumo["sinistros"], resumo["atribuidos"]
+    msgs = [("success", f"{resumo['segmentos']:,} segmentos de cerca de {resumo['comprimento']:g} km em "
+                        f"{', '.join(resumo['ufs'])}; {ok:,} de {n:,} sinistros localizados "
+                        f"({ok / n:.0%}). SNV {resumo['versao_snv']}.".replace(",", "."))]
+    fora = {k: v for k, v in resumo["situacoes"].items() if not k.startswith("localizado")}
+    if fora:
+        msgs.append(("warning", "Fora da análise: " + "; ".join(f"{v:,} {k}".replace(",", ".")
+                                                             for k, v in fora.items()) + "."))
+    longe = resumo["situacoes"].get(LONGE_DO_SNV, 0)
+    if longe > 0.1 * n and not resumo.get("osm"):
+        msgs.append(("info", f"{longe:,}".replace(",", ".") + " sinistros ficaram longe das rodovias federais. "
+                             "Para incluir as vias estaduais e municipais, envie também o arquivo do OpenStreetMap "
+                             "da região."))
+    if resumo["sem_sentido"]:
+        msgs.append(("warning", f"{resumo['sem_sentido']} sinistro(s) sem sentido informado ficaram de fora."))
+    osm = resumo.get("osm")
+    if osm:
+        msgs.append(("success", f"OpenStreetMap: {osm['segmentos']:,} segmentos em {osm['km']:,} km de vias fora do "
+                                f"SNV; {osm['sinistros']:,} sinistros nessas vias.".replace(",", ".")))
+    vmd = resumo.get("vmd")
+    if vmd is None:
+        msgs.append(("info", "Sem volume de tráfego (VMD), a Trilha 3 e os métodos de taxa da Trilha 1 não rodam."))
+    else:
+        ano = vmd["ano"] or "ano não informado"
+        msgs.append(("success", f"VMD do PNCT ({ano}, SNV {vmd['versao_snv']}) em {vmd['cobertura']:.0%} dos "
+                                "segmentos."))
+        if vmd["nao_simulavel"]:
+            msgs.append(("warning", f"{vmd['nao_simulavel']} segmento(s) com VMD marcado pelo PNCT como "
+                                    "“Não Simulável” (perto de áreas urbanas): use com cautela."))
+        if vmd["ano"] and resumo["anos"] and vmd["ano"] not in resumo["anos"]:
+            msgs.append(("warning", f"O VMD é de {vmd['ano']} e os sinistros, de "
+                                    f"{', '.join(map(str, resumo['anos']))}: as taxas são aproximadas."))
+    return msgs
+
+
+def planilha_segmentos(dados: pd.DataFrame) -> bytes:
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        dados.to_excel(writer, sheet_name="Segmentos", index=False)
+    return output.getvalue()
+
+
 def mostrar_mapa(chave, construir, altura=520):
     """Monta o mapa uma vez por execução (fica em cache na sessão)."""
     if chave not in st.session_state.mapas:
@@ -168,8 +272,10 @@ with st.sidebar:
         ident = [arquivo.name, arquivo.size, getattr(arquivo, "file_id", None)]
         if st.session_state.arquivo_id != ident:          # processa só quando o arquivo muda
             limpar_resultados()
+            st.session_state.msgs_segmentacao = None
             try:
                 dados, avisos = adaptar_planilha(ler_arquivo(arquivo.name, arquivo.getvalue()))
+                avisos = avisos_sem_extensao(dados, avisos)
                 st.session_state.update(dados=dados, avisos_entrada=avisos, erro_entrada=None, arquivo_id=ident)
             except ErroEntrada as e:
                 st.session_state.update(dados=None, avisos_entrada=[], erro_entrada=str(e), arquivo_id=ident)
@@ -192,7 +298,81 @@ with st.sidebar:
                            mime=MIME_XLSX, on_click="ignore")
 
     st.markdown("---")
-    st.subheader("Opção 2: Inserir ou Corrigir Trecho")
+    st.subheader("Opção 2: Segmentação automática")
+    st.caption("Envie os sinistros (dados abertos da PRF ou uma planilha com latitude e longitude) e o SNV do "
+               "DNIT: o app corta a malha em segmentos e conta os sinistros de cada um.")
+    chave_up = st.session_state.uploader_key
+    arqs_sin = st.file_uploader("Sinistros: dados da PRF (datatran) ou planilha com latitude, longitude e ano",
+                                type=["csv", "zip", "xlsx"], accept_multiple_files=True, key=f"prf_{chave_up}")
+    arqs_snv = st.file_uploader("SNV do DNIT (shapefile em .zip, ou .shp, .shx, .dbf e .prj)",
+                                type=["zip", "shp", "shx", "dbf", "prj", "cpg"], accept_multiple_files=True,
+                                key=f"snv_{chave_up}")
+    arq_vmd = st.file_uploader("VMD por trecho do SNV (planilha de modelagem do PNCT, opcional)", type=["xlsx"],
+                               key=f"vmd_{chave_up}")
+    arq_osm = st.file_uploader("Vias do OpenStreetMap (.osm.pbf da região, opcional)", type=["pbf", "gpkg", "geojson"],
+                               key=f"osm_{chave_up}", help="Arquivos regionais em download.geofabrik.de.")
+    if arqs_sin and arqs_snv:
+        try:
+            sinistros = sinistros_lidos(_chave(arqs_sin), arqs_sin)
+            snv = snv_preparado(_chave(arqs_snv), arqs_snv)
+            vmd = vmd_pnct(_chave([arq_vmd]), arq_vmd) if arq_vmd is not None else None
+        except Exception as e:  # noqa: BLE001
+            st.error(f"❌ Não foi possível ler os arquivos ({type(e).__name__}: {e}).")
+        else:
+            repetidas = sinistros.attrs.get("linhas_repetidas", 0)
+            if repetidas:
+                st.caption(f"{repetidas:,} linhas repetiam a mesma ocorrência (arquivos por pessoa ou anos "
+                           f"repetidos) e foram contadas uma vez: {len(sinistros):,} sinistros.".replace(",", "."))
+            sem_coord = sinistros.attrs.get("sem_coordenada", 0)
+            if sem_coord:
+                st.caption(f"{sem_coord:,} sinistros sem coordenada válida.".replace(",", "."))
+            com_km = bool(sinistros.attrs.get("com_km"))
+            if sinistros["uf"].notna().any():
+                ufs_disp = sorted(sinistros["uf"].dropna().unique())
+            else:
+                ufs_disp = sorted(snv["sg_uf"].dropna().unique())
+            anos_disp = sorted(int(a) for a in sinistros["ano"].dropna().unique())
+            ufs = st.multiselect("UF", ufs_disp, placeholder="Escolha a UF")
+            anos = st.multiselect("Anos", anos_disp, default=anos_disp[-3:])
+            comprimento = st.number_input("Comprimento do segmento (km)", min_value=LIMITES_COMPRIMENTO[0],
+                                          max_value=LIMITES_COMPRIMENTO[1], value=COMPRIMENTO_PADRAO, step=0.1,
+                                          format="%.1f", help="O Manual recomenda segmentos de 1 km.")
+            por_sentido = st.checkbox("Separar por sentido da via", disabled=not com_km,
+                                      help="Só para dados com o sentido da via (PRF).")
+            residenciais = False
+            if arq_osm is not None:
+                residenciais = st.checkbox("Incluir ruas residenciais do OpenStreetMap")
+                if com_km and sinistros["km"].notna().all():
+                    st.warning("Os dados da PRF só cobrem rodovias federais: as vias do OpenStreetMap ficariam sem "
+                               "sinistros e pesariam na comparação. Use o OpenStreetMap com bases de todas as vias.")
+            if st.button("✂️ Segmentar", width="stretch"):
+                try:
+                    with st.spinner("Segmentando..."):
+                        vias = None
+                        if arq_osm is not None and ufs:
+                            filtro = sinistros if anos == [] else sinistros[sinistros["ano"].isin(anos)]
+                            bbox = tuple(round(v, 3) for v in retangulo(filtro, snv, ufs))
+                            classes = tuple(CLASSES_PRINCIPAIS + (CLASSES_URBANAS if residenciais else []))
+                            vias = vias_osm_lidas(_chave([arq_osm]), bbox, classes, arq_osm)
+                        dados = segmentar(sinistros, snv, ufs, anos, comprimento, por_sentido and com_km, vmd=vmd,
+                                          vias_osm=vias)
+                    limpar_resultados()
+                    st.session_state.update(dados=dados, avisos_entrada=[], erro_entrada=None, arquivo_id=None,
+                                            msgs_segmentacao=mensagens_segmentacao(dados.attrs["resumo"]))
+                except ValueError as e:
+                    st.session_state.msgs_segmentacao = [("error", str(e))]
+    if st.session_state.msgs_segmentacao:
+        for tipo, texto in st.session_state.msgs_segmentacao:
+            getattr(st, tipo)(texto)
+        dados_seg = st.session_state.dados
+        if dados_seg is not None and "codigo_snv" in dados_seg:
+            st.download_button("📥 Baixar segmentos (planilha)", data=planilha_segmentos(dados_seg),
+                               file_name="segmentos.xlsx", mime=MIME_XLSX, on_click="ignore", width="stretch")
+            if "fonte" in dados_seg and (dados_seg["fonte"] == "OpenStreetMap").any():
+                st.caption(f"Vias além do SNV: {ATRIBUICAO}.")
+
+    st.markdown("---")
+    st.subheader("Opção 3: Inserir ou Corrigir Trecho")
     with st.form(key="formulario_trecho", clear_on_submit=True):
         segmento = st.text_input("ID do Segmento*", help="Um ID já existente substitui o registro anterior.")
         st.markdown("**Georreferenciamento**")
@@ -228,7 +408,7 @@ with st.sidebar:
     st.markdown("---")
     if st.button("Limpar todos os registros"):
         st.session_state.update(dados=None, avisos_entrada=[], erro_entrada=None, arquivo_id=None,
-                                uploader_key=st.session_state.uploader_key + 1)
+                                msgs_segmentacao=None, uploader_key=st.session_state.uploader_key + 1)
         limpar_resultados()
         st.rerun()
     st.caption(f"Versão {VERSAO}")
@@ -296,7 +476,7 @@ if st.button("🚀 Executar Análises", type="primary", width="stretch"):
                 st.session_state.resultados[chave] = res
                 st.session_state.avisos[chave] = res.attrs.get("avisos", [])
             except ValueError as e:
-                st.session_state.erros[chave] = str(e)
+                st.session_state.erros[chave] = str(e) + dica_erro(str(e), dados)
             except Exception as e:  # noqa: BLE001
                 st.session_state.erros[chave] = f"Erro inesperado ({type(e).__name__}): {e}"
                 traceback.print_exc()
@@ -332,8 +512,12 @@ elif st.session_state.assinatura == sig:
                 geo = para_mapa(res)
                 st.markdown("##### Mapa: quartis de densidade (vermelho = quartil superior, crítico)")
                 mostrar_mapa(chave, lambda g=geo: mapa_kde(g))
-            st.dataframe(res.drop(columns=["x_proj", "y_proj", "peso"], errors="ignore"),
-                         width="stretch", hide_index=True)
+            tabela = res.drop(columns=["x_proj", "y_proj", "peso"], errors="ignore")
+            if "rodovia" in dados and "rodovia" not in tabela:    # ex.: "BR-040/DF, km 10,0 a 11,0"
+                tabela = tabela.merge(dados[["segmento_id", "rodovia"]].drop_duplicates("segmento_id"),
+                                      on="segmento_id", how="left")
+                tabela.insert(1, "rodovia", tabela.pop("rodovia"))
+            st.dataframe(tabela, width="stretch", hide_index=True)
 
     if resultados:
         st.markdown("---")

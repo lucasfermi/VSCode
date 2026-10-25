@@ -1,4 +1,4 @@
-# Versões testadas em 19/10/2026 com Python 3.13 (ver CHANGELOG.md e THIRD_PARTY_LICENSES.md)
+# Versões testadas com Python 3.13 (ver CHANGELOG.md e THIRD_PARTY_LICENSES.md)
 streamlit==1.66.0
 pandas==3.0.6
 numpy==2.5.4
@@ -9,3 +9,7 @@ matplotlib==3.11.2
 fpdf2==2.8.9
 xlsxwriter==3.2.9
 openpyxl==3.1.5
+# segmentação automática
+shapely==2.2.0
+pyproj==3.8.0
+pyogrio==0.13.0

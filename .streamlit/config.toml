@@ -1,7 +1,7 @@
 [server]
 # Serve a pasta static/ (fonte Roboto local, sem chamada ao Google Fonts)
 enableStaticServing = true
-maxUploadSize = 200
+maxUploadSize = 1000
 
 [theme]
 # Cor principal: azul institucional

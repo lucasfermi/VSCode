@@ -16,6 +16,9 @@ Levantamento feito em 19/10/2026 com as versões do `requirements.txt`.
 | fpdf2 | 2.8.9 | LGPL-3.0-only | relatório PDF (usada como biblioteca, sem modificação) |
 | xlsxwriter | 3.2.9 | BSD-2-Clause | exportação Excel |
 | openpyxl | 3.1.5 | MIT | leitura de .xlsx |
+| shapely | 2.2.0 | BSD-3-Clause (os pacotes binários incluem a GEOS, LGPL-2.1) | geometria da segmentação |
+| pyproj | 3.8.0 | MIT (inclui a PROJ, MIT) | conversão de coordenadas |
+| pyogrio | 0.13.0 | MIT (inclui a GDAL, MIT, e bibliotecas de licença permissiva) | leitura do SNV e do OpenStreetMap |
 
 Dependências indiretas relevantes: fonttools (MIT), Pillow (MIT-CMU), defusedxml (PSF), Jinja2 e
 branca (BSD/MIT), pyarrow (Apache-2.0), protobuf (BSD-3-Clause), certifi (MPL-2.0).
@@ -33,6 +36,18 @@ importados. O pyFFTW foi retirado também por embutir o FFTW, distribuído sob G
 | Bootstrap 5.2.2 e Glyphicons do Bootstrap 3 | MIT |
 | Font Awesome Free 6.2.0 | ícones CC BY 4.0, fontes SIL OFL 1.1, código MIT |
 | Leaflet.awesome-markers 2.0.2 | MIT |
+
+## Dados usados na segmentação
+
+O SNV (DNIT), os sinistros por ocorrência (PRF) e a modelagem de VMD do PNCT (DNIT) são dados públicos
+enviados pelo usuário a cada uso; o repositório não os distribui.
+
+As vias fora do SNV vêm de arquivos do OpenStreetMap enviados pelo usuário (ex.: extratos regionais da
+Geofabrik). Os dados são © colaboradores do OpenStreetMap e estão sob a Open Database License (ODbL 1.0,
+https://www.openstreetmap.org/copyright). A ODbL pede atribuição em tudo o que for produzido a partir deles:
+o app mostra “© colaboradores do OpenStreetMap (ODbL)” ao lado dos resultados e o relatório PDF cita a
+fonte. Quem publicar a planilha de segmentos com vias do OpenStreetMap (coluna `fonte`) deve citar o
+OpenStreetMap e seguir as regras da ODbL para bancos de dados derivados.
 
 ## Mapa de fundo
 

@@ -1,5 +1,37 @@
 # Histórico de versões
 
+## 4.2 — em desenvolvimento
+
+- Segmentação automática (Produto 2): a partir dos sinistros por ocorrência da PRF e do SNV do DNIT, o
+  app corta a malha da UF em segmentos de comprimento escolhido (1 km por padrão, de 0,1 a 10 km) e conta
+  os sinistros de cada um (`utils/segmentacao.py`).
+  - Segmentos dentro de cada trecho do SNV com pista, com ID derivado do código do SNV e sobra menor que
+    meio segmento somada ao anterior; trechos planejados e travessias ficam de fora.
+  - BRs coincidentes contam uma vez, no trecho principal; a posição passa de uma BR para outra pela fração
+    do trecho, inclusive quando a geometria está no sentido oposto.
+  - Sinistro localizado pela coordenada, presa à BR informada (até 500 m); sem coordenada, pelo km.
+  - Opção de separar por sentido da via; planilha dos segmentos para baixar.
+- Validação contra a segmentação oficial de DF, MG e PE (2021 a 2023): nos 71 trechos que não mudaram de
+  versão do SNV, 81% dos segmentos têm as mesmas contagens e a correlação da UPS fica entre 0,92 e 0,95
+  (`docs/auditoria/validacao_segmentacao.py`).
+- Sinistros de qualquer planilha com latitude, longitude e ano (ou data), com a gravidade em texto ou em
+  contagens; arquivos da PRF “por pessoa” contam cada ocorrência uma vez.
+- VMD por segmento a partir da planilha de modelagem do PNCT/DNIT (`utils/trafego.py`): mesmo código do
+  SNV, com a posição pela fração do trecho, ou mesma BR e km no eixo principal (acessos, contornos e
+  travessias têm quilometragem própria e recebiam o VMD de outro ponto da BR); avisos para trechos
+  “Não Simulável” e para VMD de ano diferente dos sinistros.
+- Vias fora do SNV pelo OpenStreetMap (`utils/osm.py`): arquivo regional `.osm.pbf`, vias federais e
+  trechos a até 40 m do SNV descartados, pedaços da mesma via unidos, pista dupla tratada como uma via.
+  Atribuição ODbL no app e no relatório.
+- Relatório: fontes dos dados (versão do SNV, VMD do PNCT, OpenStreetMap).
+- Planilha com um sinistro por linha enviada na Opção 1: o app avisa que só a Trilha 2 roda e indica a
+  Opção 2; as mensagens das Trilhas 1 e 3 dizem o que fazer quando faltam extensão ou VMD. Com muitos
+  sinistros longe das rodovias federais, o app sugere o arquivo do OpenStreetMap.
+- Sinistro só com coordenada que cai numa rodovia federal de outra UF fica de fora e aparece no resumo.
+- Tabelas de resultados mostram a rodovia e os km de cada segmento; a planilha aceita a coluna `n_anos`.
+- Novas dependências: shapely, pyproj e pyogrio. Limite de envio de 1 GB (arquivos regionais do
+  OpenStreetMap).
+
 ## 4.1.1 — outubro de 2026
 
 Correções encontradas nos testes da segmentação automática, que gera muitos segmentos curtos ou sem

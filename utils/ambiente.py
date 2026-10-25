@@ -8,7 +8,7 @@ from importlib import metadata
 
 from packaging.version import InvalidVersion, Version
 
-# Versões mínimas que a v4.1 usa (o requirements.txt fixa as versões testadas)
+# Versões mínimas que o app usa (o requirements.txt fixa as versões testadas)
 MINIMOS = {
     "streamlit": "1.58",      # st.iframe, width="stretch", on_click="ignore"
     "pandas": "2.0",
@@ -20,6 +20,9 @@ MINIMOS = {
     "fpdf2": "2.7",           # fpdf.enums.XPos/YPos
     "xlsxwriter": "3.0",
     "openpyxl": "3.0",
+    "shapely": "2.0",         # segmentação: STRtree.query_nearest, operações vetorizadas
+    "pyproj": "3.4",
+    "pyogrio": "0.7",         # leitura do shapefile do SNV
 }
 
 
@@ -40,22 +43,22 @@ def verificar_ambiente():
             continue
         try:
             if Version(v) < Version(minimo):
-                erros.append(f"`{pacote}` {v} é antigo; a v4.1 precisa da versão {minimo} ou mais nova.")
+                erros.append(f"`{pacote}` {v} é antigo; o app precisa da versão {minimo} ou mais nova.")
         except InvalidVersion:
             pass
     antigo = _versao("fpdf")
     if antigo:
         if importlib.util.find_spec("fpdf.enums") is None:
             erros.append(f"O pacote antigo `fpdf` {antigo} (usado pela v4) está ativo neste ambiente; "
-                         "a v4.1 usa o `fpdf2`, e os dois não podem ficar juntos.")
+                         "o app usa o `fpdf2`, e os dois não podem ficar juntos.")
         else:
             avisos.append(f"O pacote antigo `fpdf` {antigo} continua instalado junto com o `fpdf2`. "
-                          "Funciona, mas o ideal é um ambiente só para a v4.1.")
+                          "Funciona, mas o ideal é um ambiente só para esta versão.")
     return erros, avisos
 
 
 def instrucoes_instalacao():
-    """Comandos para criar um ambiente só da v4.1, rodados na pasta do projeto."""
+    """Comandos para criar um ambiente só desta versão, rodados na pasta do projeto."""
     if os.name == "nt":
         return ("python -m venv .venv\n"
                 ".venv\\Scripts\\python -m pip install -r requirements.txt\n"

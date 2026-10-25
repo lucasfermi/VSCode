@@ -170,6 +170,22 @@ def _resumo(df_proc, resultados):
             f"(peso de maior valor na UPS).")
 
 
+def _fontes(df_proc):
+    """Fontes da segmentação automática (SNV, VMD e OpenStreetMap), quando os dados vierem dela."""
+    if "codigo_snv" not in df_proc:
+        return None
+    resumo = df_proc.attrs.get("resumo", {})
+    partes = [f"Segmentos cortados na malha do SNV do DNIT (versão {resumo.get('versao_snv', 'não informada')})."]
+    vmd = resumo.get("vmd")
+    if vmd:
+        partes.append(f"Volume de tráfego (VMD) da modelagem do PNCT/DNIT ({vmd.get('ano') or 'ano não informado'}, "
+                      f"SNV {vmd.get('versao_snv')}).")
+    if "fonte" in df_proc and (df_proc["fonte"] == "OpenStreetMap").any():
+        partes.append("Vias fora do SNV: © colaboradores do OpenStreetMap, dados sob a licença ODbL "
+                      "(openstreetmap.org/copyright).")
+    return "Fontes: " + " ".join(partes)
+
+
 def _texto_metodologia(resultados, pesos):
     from models.trilha3_bayes import CRITERIOS, METODOS
 
@@ -208,6 +224,9 @@ def gerar_pdf_completo(df_proc, resultados, logo_path=None):
 
     pdf.capitulo_titulo("1. Resumo Executivo")
     pdf.texto_corpo(_resumo(df_proc, resultados))
+    fontes = _fontes(df_proc)
+    if fontes:
+        pdf.texto_corpo(fontes)
     if "UPS" in df_proc:
         ups_seg = df_proc.groupby("segmento_id")["UPS"].sum()
         fig, ax = plt.subplots(figsize=(8, 3))

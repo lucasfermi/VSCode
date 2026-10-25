@@ -50,3 +50,11 @@ def test_coluna_de_total_nao_vira_obito_e_linha_de_total_sai():
 def test_sem_colunas_de_sinistro_da_erro_claro():
     with pytest.raises(ErroEntrada, match="colunas de sinistros"):
         adaptar_planilha(pd.DataFrame({"ID": [1], "acidentes_leves": [3]}))
+
+
+def test_coluna_n_anos_e_respeitada():
+    df = pd.DataFrame({"segmento_id": ["A", "B"], "sem_vitima": [1, 0], "com_vitima": [0, 2], "com_obito": [0, 0],
+                       "extensao_trecho": [1.0, 1.0], "n_anos": [5, 5]})
+    dados, avisos = adaptar_planilha(df)
+    assert (dados["n_anos"] == 5).all()
+    assert not any("Período" in a for a in avisos)

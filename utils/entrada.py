@@ -168,6 +168,8 @@ def adaptar_planilha(df_bruto: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
     col_ano = _achar(df, "ano")
     out["ano"] = para_numero(df[col_ano]) if col_ano else np.nan
+    col_n_anos = _achar(df, "n_anos", "numero_de_anos", "anos")
+    out["_n_anos"] = para_numero(df[col_n_anos]) if col_n_anos else np.nan
 
     vol_ano = [(c, a) for c, a in _colunas_por_padrao(df, PADROES["volume"]) if a]
     vol_sem = [c for c, a in _colunas_por_padrao(df, PADROES["volume"]) if not a]
@@ -233,9 +235,9 @@ def adaptar_planilha(df_bruto: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         out["n_anos"] = n_anos.reindex(out.index).replace(0, np.nan)
         out = out.reset_index()
     else:
-        out["n_anos"] = np.nan
+        out["n_anos"] = out["_n_anos"]      # coluna n_anos (ex.: planilha exportada pela segmentação)
         if col_ano:
-            out.loc[out["ano"].notna(), "n_anos"] = 1
+            out.loc[out["ano"].notna() & out["n_anos"].isna(), "n_anos"] = 1
 
     if out["n_anos"].isna().any():
         n_padrao = len(anos_detectados) or len(vol_ano) or ANOS_PADRAO
