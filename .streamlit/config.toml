@@ -1,0 +1,31 @@
+[server]
+# Serve a pasta static/ (fonte Roboto local, sem chamada ao Google Fonts)
+enableStaticServing = true
+maxUploadSize = 200
+
+[theme]
+# Cor principal: azul institucional
+primaryColor = "#0988C3"
+font = "Roboto, sans-serif"
+
+[[theme.fontFaces]]
+family = "Roboto"
+url = "app/static/fonts/Roboto-Regular.ttf"
+weight = "400"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Roboto"
+url = "app/static/fonts/Roboto-Bold.ttf"
+weight = "700"
+style = "normal"
+
+[[theme.fontFaces]]
+family = "Roboto"
+url = "app/static/fonts/Roboto-Italic.ttf"
+weight = "400"
+style = "italic"
+
+[browser]
+# Não envia estatísticas de uso ao Streamlit
+gatherUsageStats = false

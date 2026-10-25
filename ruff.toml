@@ -1,0 +1,8 @@
+# Regras de lint do projeto: python -m ruff check .
+line-length = 120
+target-version = "py313"
+src = [".", "tests"]
+
+[lint]
+select = ["E", "F", "W", "B", "I", "UP"]
+ignore = ["B905"]   # zip() sem strict=

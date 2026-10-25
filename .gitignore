@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+
+# Caches de fonte do fpdf antigo (guardam caminhos da máquina de quem gerou)
+*.pkl
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Editores e sistema
+.vscode/
+.idea/
+.ipynb_checkpoints/
+Thumbs.db
+desktop.ini
+.DS_Store
+~$*
+
+# Saídas geradas e dados locais
+saidas/
+*.pdf
+!docs/*.pdf
+dados_locais/
+
+# Planilhas: o repositório publica só o aplicativo e os exemplos fictícios de data/
+*.xlsx
+*.xls
+*.csv
+!data/exemplo_*.csv

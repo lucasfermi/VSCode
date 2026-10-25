@@ -1,0 +1,4 @@
+segmento_id,sem_vitima,com_vitima,com_obito,latitude,longitude,volume_trafego,extensao_trecho,ano
+A1,10,2,0,-15.78,-47.93,5000,1.2,2020
+A2,3,1,1,-15.76,-47.95,4500,0.8,2021
+A3,7,0,0,-15.80,-47.94,5200,1.5,2022

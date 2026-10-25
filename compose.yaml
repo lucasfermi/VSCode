@@ -1,0 +1,10 @@
+# Servidor próprio: docker compose up -d --build (ver docs/IMPLANTACAO.md)
+name: segmentos-criticos
+services:
+  app:
+    build: .
+    image: segmentos-criticos:latest
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8501:8501"   # só a própria máquina; troque por "8501:8501" para abrir na rede local
