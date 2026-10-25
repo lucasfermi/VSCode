@@ -1,5 +1,16 @@
 # Histórico de versões
 
+## 4.1.1 — outubro de 2026
+
+Correções encontradas nos testes da segmentação automática, que gera muitos segmentos curtos ou sem
+sinistros.
+
+- Trilha 1: segmento sem sinistros podia sair crítico. Com a correção de −0,5/m do Manual, o valor crítico
+  de um segmento curto fica negativo e o índice zero passava dele; na planilha de DF, MG e PE eram 2
+  segmentos no padrão (severidade, 95%) e até 18 em outras configurações. Agora o app avisa e não os marca.
+- Trilha 2: quando 75% ou mais dos segmentos não têm sinistros no raio do núcleo, o limite do quartil
+  superior era zero e todos os segmentos viravam críticos; agora só a densidade positiva conta.
+
 ## 4.1 — outubro de 2026
 
 Correções da auditoria de código (Produto 1 do TR). A versão 4 continua intacta na pasta `Versão 4`.

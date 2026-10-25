@@ -10,7 +10,7 @@ import streamlit as st
 
 from utils.ambiente import instrucoes_instalacao, python_em_uso, verificar_ambiente
 
-VERSAO = "4.1"
+VERSAO = "4.1.1"
 BASE = os.path.dirname(os.path.abspath(__file__))
 ICONE = os.path.join(BASE, "assets", "icone.png")
 LOGO = os.path.join(BASE, "assets", "logo_horizontal.png")

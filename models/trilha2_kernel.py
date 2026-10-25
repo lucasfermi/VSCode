@@ -97,7 +97,13 @@ def aplicar_kernel(df, bandwidth=1000.0, cell_size=500.0, percentil=75.0):
 
     dens_validas = df_res.loc[validos, "densidade"]
     limite = float(np.percentile(dens_validas, percentil))
-    df_res["hotspot_kde"] = (df_res["densidade"] >= limite) & validos
+    # densidade zero (nenhum sinistro no raio do núcleo) nunca é crítica: quando a maioria dos segmentos não
+    # tem sinistros por perto, o limite seria zero e todos virariam críticos
+    df_res["hotspot_kde"] = (df_res["densidade"] >= limite) & (df_res["densidade"] > 0) & validos
+    if limite <= 0:
+        avisos.append(f"{percentil:g}% ou mais dos segmentos não têm sinistros num raio de "
+                      f"{3 * bandwidth / 1000:g} km (densidade zero): só os de densidade positiva contam como "
+                      "críticos.")
     df_res["Criticidade"] = df_res["hotspot_kde"].map({True: "Crítico", False: "Não Crítico"})
     df_res["score_kernel"] = df_res["densidade"]
     df_res["Critico"] = df_res["hotspot_kde"]

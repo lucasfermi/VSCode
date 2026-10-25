@@ -82,3 +82,14 @@ def test_sinal_da_correcao_e_exclusao_de_zeros():
         (1 / mais["extensao_trecho"]).round(9).tolist()
     sem_zeros = aplicar_valor_critico(d, incluir_sem_sinistros=False)
     assert set(sem_zeros["segmento_id"]) == {"b", "c"}
+
+
+def test_segmento_curto_sem_sinistros_nunca_e_critico():
+    """Com a correção -0,5/m, o valor crítico de um segmento curto fica negativo; sem sinistros, não é crítico."""
+    ids = ["a", *[f"b{i}" for i in range(18)], "c", "d"]
+    d = pd.DataFrame({"segmento_id": ids, "extensao_trecho": [1.0] * 19 + [0.05, 0.05],
+                      "sem_vitima": [1] + [0] * 18 + [0, 1], "com_vitima": 0, "com_obito": 0})
+    res = aplicar_valor_critico(preparar_dados(d, 1, 4, 28)).set_index("segmento_id")
+    assert res.loc["c", "Valor_Critico"] < 0 and not res.loc["c", "Critico"]
+    assert res.loc["d", "Critico"]                       # curto, mas com sinistro: segue a regra do Manual
+    assert any("valor crítico negativo" in a for a in res.attrs["avisos"])

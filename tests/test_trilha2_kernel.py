@@ -66,3 +66,15 @@ def test_sem_coordenadas_da_erro_claro():
     d["latitude"] = np.nan
     with pytest.raises(ValueError, match="latitude e longitude"):
         aplicar_kernel(d)
+
+
+def test_maioria_sem_sinistros_por_perto():
+    """Com mais de 75% dos segmentos longe de qualquer sinistro, o limite é zero: só a densidade positiva conta."""
+    d = _df(10)
+    d["UPS"] = d.sem_vitima + 4 * d.com_vitima + 28 * d.com_obito + 1
+    longe = pd.DataFrame({"segmento_id": [f"z{i}" for i in range(60)], "latitude": -16.5 + 0.02 * np.arange(60),
+                          "longitude": -48.5, "sem_vitima": 0, "com_vitima": 0, "com_obito": 0, "UPS": 0})
+    res = aplicar_kernel(pd.concat([d, longe], ignore_index=True))
+    assert res.attrs["limite"] == 0
+    assert set(res.loc[res["Critico"], "segmento_id"]) == set(d["segmento_id"])
+    assert any("densidade zero" in a for a in res.attrs["avisos"])

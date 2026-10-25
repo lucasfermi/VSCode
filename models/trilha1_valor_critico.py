@@ -95,7 +95,13 @@ def aplicar_valor_critico(df, nivel_confianca=95.0, metodo="severidade", sinal_c
     valor_critico = media + k * np.sqrt(media / m) + sinal_correcao * 0.5 / m   # Eq. 3.3, 3.6, 3.9, 3.12
 
     g = g.assign(Indice=indice, Valor_Critico=valor_critico, Media_Referencia=media)
-    g["Critico"] = g["Indice"] > g["Valor_Critico"]
+    # com a correção -0,5/m, o valor crítico de segmentos curtos pode ficar negativo; sem sinistros, o
+    # segmento nunca é crítico
+    sem_sinistro_acima = (g["Indice"] > g["Valor_Critico"]) & (x <= 0)
+    if sem_sinistro_acima.any():
+        avisos.append(f"{int(sem_sinistro_acima.sum())} segmento(s) curto(s) e sem sinistros ficaram com valor crítico "
+                      "negativo (correção de -0,5/m do Manual) e não foram marcados como críticos.")
+    g["Critico"] = (g["Indice"] > g["Valor_Critico"]) & (x > 0)
     g["Metrica_Obs"] = g["Indice"]          # nome usado pela v4
     g = g.sort_values("Indice", ascending=False).reset_index(drop=True)
     g.attrs.update({"avisos": avisos, "metodo": metodo, "k": k, "nivel_confianca": nivel_confianca,
