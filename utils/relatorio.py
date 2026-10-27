@@ -181,9 +181,17 @@ def _texto_metodologia(resultados, pesos):
 
     def kde(a):
         p = float(a.get("percentil", 75))
-        corte = "no quartil superior de densidade" if p == 75 else f"acima do percentil {_br(p, 0)} da densidade"
+        corte = "no quartil superior" if p == 75 else f"acima do percentil {_br(p, 0)}"
+        if a.get("unidade", "sinistros") == "sinistros":
+            criterio = (f"São críticos os segmentos cujos sinistros estão {corte} das densidades atribuídas a cada "
+                        "sinistro, como no Manual.")
+            if a.get("coincidencia") is not None:
+                criterio += (f" Na avaliação do Manual, o quartil superior da densidade coincide com o da soma da UPS "
+                             f"na célula em {_br(a['coincidencia'], 1)}% dos sinistros.")
+        else:
+            criterio = f"São críticos os segmentos {corte} de densidade entre os segmentos (critério da v4)."
         return (f"estima a concentração espacial da UPS (banda de {_br(a.get('bandwidth', 1000), 0)} m, células de "
-                f"{_br(a.get('cell_size', 500), 0)} m). São críticos os segmentos {corte}.")
+                f"{_br(a.get('cell_size', 500), 0)} m). {criterio}")
 
     def bayes(a):
         return ("estima o número esperado de sinistros combinando o observado com uma referência, o que reduz o "

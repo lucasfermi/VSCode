@@ -38,6 +38,20 @@ def test_planilha_oficial_separa_sentidos_e_soma_anos():
     assert any("sentido" in a for a in avisos)
 
 
+def test_planilha_oficial_com_um_sinistro_por_linha_mantem_os_sentidos():
+    # formato do input de Kernel da análise prévia: uma linha por sinistro e o ID repetido nos dois sentidos
+    df = pd.DataFrame({
+        "ID": [29, 29, 29, 30], "ID_2": [33, 34, 34, 35], "CodigoSNV": ["050BMG0240"] * 4, "Comprimento": [1.0] * 4,
+        "latitude": [-18.88, -18.88, -18.88, -18.89], "longitude": [-48.26, -48.26, -48.26, -48.25],
+        "Sentido": ["Decrescente", "Crescente", "Crescente", "Crescente"],
+        "Sinistros_SV.2021": [1, 0, 0, 0], "Sinistros_CV.2021": [0, 1, 0, 1], "Sinistros_CO.2021": [0, 0, 1, 0],
+    })
+    dados, avisos = adaptar_planilha(df)
+    assert dados["segmento_id"].tolist() == ["29-D", "29-C", "30-C"]     # antes: os dois sentidos do 29 somados
+    assert dados[["sem_vitima", "com_vitima", "com_obito"]].to_numpy().tolist() == [[1, 0, 0], [0, 1, 1], [0, 1, 0]]
+    assert any("somadas" in a for a in avisos)
+
+
 def test_coluna_de_total_nao_vira_obito_e_linha_de_total_sai():
     df = pd.DataFrame({"ID": ["1", "2", None, "TOTAL"], "sem_vitima": [1, 0, None, 1],
                        "com_vitima": [2, 1, None, 3], "com_obito": [0, 1, None, 1],

@@ -209,17 +209,18 @@ def adaptar_planilha(df_bruto: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         avisos.append(f"{int(ext_invalida.sum())} linha(s) sem extensão válida (> 0): ficam fora das Trilhas 1 e 3, "
                       "mas entram na Trilha 2 (KDE).")
 
-    # 5. Uma linha por segmento
+    # 5. Uma linha por segmento. Nas planilhas oficiais o mesmo ID nos dois sentidos são dois segmentos, também
+    #    quando cada segmento ocupa várias linhas (um sinistro ou um ano por linha)
+    if ("sentido" in out and out["segmento_id"].duplicated().any()
+            and out.groupby("segmento_id")["sentido"].nunique().gt(1).any()):
+        out["segmento_id"] = out["segmento_id"] + "-" + out["sentido"].fillna("?").str[0].str.upper()
+        avisos.append("O ID se repete entre os sentidos da via: cada sentido virou um segmento "
+                      "(ex.: '25-C' e '25-D').")
     formato_longo = col_ano is not None and out["segmento_id"].duplicated().any()
     if not formato_longo and out["segmento_id"].duplicated().any():
-        if "sentido" in out and not out[["segmento_id", "sentido"]].duplicated().any():
-            out["segmento_id"] = out["segmento_id"] + "-" + out["sentido"].fillna("?").str[0].str.upper()
-            avisos.append("O ID se repete entre os sentidos da via: cada sentido virou um segmento "
-                          "(ex.: '25-C' e '25-D').")
-        else:
-            n_rep = int(out["segmento_id"].duplicated(keep=False).sum())
-            avisos.append(f"{n_rep} linha(s) com ID repetido foram somadas como um mesmo segmento.")
-            formato_longo = True
+        n_rep = int(out["segmento_id"].duplicated(keep=False).sum())
+        avisos.append(f"{n_rep} linha(s) com ID repetido foram somadas como um mesmo segmento.")
+        formato_longo = True
 
     if formato_longo:
         agg = {c: "sum" for c in COLUNAS_SINISTROS}

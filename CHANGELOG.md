@@ -1,5 +1,18 @@
 # Histórico de versões
 
+## 4.1.2 — outubro de 2026
+
+A Trilha 2 passa a seguir o Manual, conforme a auditoria do motor contra a análise prévia de DF, MG e PE.
+
+- Trilha 2: o quartil superior é tomado sobre os sinistros (cada segmento conta tantas vezes quanto tem
+  sinistros) e são críticos os do nível 4 do código R do Manual (item 3.3), acima do P75. Segmento sem
+  sinistro não tem densidade e nunca é crítico. O app e o relatório mostram a avaliação do Manual
+  (coincidência com a soma da UPS na célula). O quartil sobre os segmentos, da v4, fica como opção. Com o
+  input da análise prévia, o app dá o mesmo resultado do código R em todos os segmentos: 5, 92 e 28 críticos
+  em DF, MG e PE, contra 21, 628 e 243 antes.
+- Planilha oficial com um sinistro (ou um ano) por linha: os dois sentidos do mesmo ID continuam como dois
+  segmentos (`25-C` e `25-D`); antes eram somados num só.
+
 ## 4.1.1 — outubro de 2026
 
 Correções encontradas nos testes da segmentação automática, que gera muitos segmentos curtos ou sem

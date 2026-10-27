@@ -10,7 +10,7 @@ import streamlit as st
 
 from utils.ambiente import instrucoes_instalacao, python_em_uso, verificar_ambiente
 
-VERSAO = "4.1.1"
+VERSAO = "4.1.2"
 BASE = os.path.dirname(os.path.abspath(__file__))
 ICONE = os.path.join(BASE, "assets", "icone.png")
 LOGO = os.path.join(BASE, "assets", "logo_horizontal.png")
@@ -40,6 +40,7 @@ import pandas as pd  # noqa: E402
 
 from models.trilha1_valor_critico import METODOS as METODOS_VC  # noqa: E402
 from models.trilha1_valor_critico import aplicar_valor_critico  # noqa: E402
+from models.trilha2_kernel import UNIDADES as UNIDADES_KDE  # noqa: E402
 from models.trilha2_kernel import aplicar_kernel  # noqa: E402
 from models.trilha3_bayes import CRITERIO_PADRAO, CRITERIOS, aplicar_bayes  # noqa: E402
 from models.trilha3_bayes import METODOS as METODOS_EB  # noqa: E402
@@ -265,9 +266,13 @@ with st.expander("⚙️ Configurações das análises"):
         banda = c1.number_input("Largura de banda (m)", min_value=100, max_value=10000, value=1000, step=100)
         celula = c2.number_input("Tamanho da célula (m)", min_value=50, max_value=5000, value=500, step=50)
         percentil = c3.number_input("Percentil de corte", min_value=50, max_value=99, value=75, step=1)
+        unidade_kde = st.radio("Quartil sobre", list(UNIDADES_KDE), format_func=UNIDADES_KDE.get, horizontal=True,
+                               help="Manual (item 3.3): cada sinistro conta uma vez e os críticos são os do "
+                                    "último quartil das densidades dos sinistros. v4: cada segmento conta uma vez, e "
+                                    "um quarto dos segmentos sai crítico por construção.")
 
 opcoes = {"pesos": [peso_sv, peso_cv, peso_co], "vc": [metodo_vc, nivel_vc, sinal_vc, excluir_zeros],
-          "eb": [metodo_eb, criterio_eb, nivel_eb], "kde": [banda, celula, percentil]}
+          "eb": [metodo_eb, criterio_eb, nivel_eb], "kde": [banda, celula, percentil, unidade_kde]}
 
 st.header("Registros Inseridos")
 dados = st.session_state.dados
@@ -286,7 +291,7 @@ if st.button("🚀 Executar Análises", type="primary", width="stretch"):
             "vc": lambda: aplicar_valor_critico(df_proc, nivel_confianca=nivel_vc, metodo=metodo_vc,
                                                 sinal_correcao=sinal_vc, incluir_sem_sinistros=not excluir_zeros),
             "kde": lambda: aplicar_kernel(df_proc, bandwidth=float(banda), cell_size=float(celula),
-                                          percentil=float(percentil)),
+                                          percentil=float(percentil), unidade=unidade_kde),
             "bayes": lambda: aplicar_bayes(df_proc, metodo=metodo_eb, criterio=criterio_eb,
                                            nivel_confianca=nivel_eb),
         }
@@ -319,6 +324,10 @@ elif st.session_state.assinatura == sig:
             for aviso in st.session_state.avisos.get(chave, []):
                 st.caption(f"⚠️ {aviso}")
             st.metric("Segmentos críticos", f"{int(res['Critico'].sum())} de {len(res)}")
+            if chave == "kde" and res.attrs.get("coincidencia") is not None:
+                coincidencia = f"{res.attrs['coincidencia']:.1f}".replace(".", ",")
+                st.caption(f"Avaliação do Manual: em {coincidencia}% dos sinistros, o quartil superior da densidade "
+                           "coincide com o da soma da UPS na célula.")
             if chave == "vc":
                 geo = para_mapa(res.merge(dados[["segmento_id", "latitude", "longitude"]], on="segmento_id",
                                           how="left"))

@@ -11,7 +11,7 @@ Universidade de Brasília.
 | Trilha | Método | Dados necessários |
 | --- | --- | --- |
 | 1 | Valor Crítico: número de sinistros, severidade (UPS), taxa de sinistros e taxa de severidade (Manual, item 3.1) | sinistros e extensão; VMD para os métodos de taxa |
-| 2 | Densidade de Kernel (KDE), banda de 1 km, células de 500 m, quartil superior (Manual, item 3.3) | sinistros e coordenadas |
+| 2 | Densidade de Kernel (KDE), banda de 1 km, células de 500 m, quartil superior das densidades dos sinistros (Manual, item 3.3); opção: quartil sobre os segmentos, como na v4 | sinistros e coordenadas |
 | 3 | Empírico de Bayes: Média Global por tipo de sinistro (Manual, item 3.2; Marshall, 1991); opções: Binomial Negativa por tipo de sinistro (Hauer/HSM) e o procedimento da v4 | sinistros, extensão e VMD |
 
 A numeração é a adotada a partir da v4. O Manual de 2025 e o Manual de Utilização usam a ordem antiga
